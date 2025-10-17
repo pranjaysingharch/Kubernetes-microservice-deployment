@@ -1,0 +1,65 @@
+services:
+  # PostgreSQL Database for local development
+  postgres:
+    image: postgres:15-alpine
+    container_name: microservice-a-postgres-dev
+    environment:
+      POSTGRES_DB: microservice_a_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d microservice_a_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - microservice-network
+
+  # Microservice A
+  microservice-a:
+    build:
+      context: ./microservice-a
+      dockerfile: Dockerfile
+    container_name: microservice-a-app
+    environment:
+      # Database configuration for Docker environment
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/microservice_a_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: password
+      SPRING_PROFILES_ACTIVE: docker
+      # JVM settings for Docker
+      JAVA_OPTS: >-
+        -Xmx512m
+        -Xms256m
+        --enable-preview
+        -XX:+UseG1GC
+        -XX:+UseContainerSupport
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - microservice-network
+
+volumes:
+  postgres_dev_data:
+    driver: local
+
+networks:
+  microservice-network:
+    driver: bridge
