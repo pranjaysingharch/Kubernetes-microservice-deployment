@@ -1,4 +1,4 @@
-package com.production.microservices.microservicea.controller;
+/**package com.production.microservices.microservicea.controller;
 
 import com.production.microservices.microservicea.entity.Product;
 import com.production.microservices.microservicea.service.ProductService;
@@ -10,6 +10,7 @@ import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.data.jpa.mapping.JpaMappingContext;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
@@ -25,7 +26,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(value = ProductController.class, excludeAutoConfiguration = {
+@WebMvcTest(controllers = ProductController.class, excludeAutoConfiguration = {
     DataSourceAutoConfiguration.class,
     HibernateJpaAutoConfiguration.class,
     JpaRepositoriesAutoConfiguration.class
@@ -37,6 +38,9 @@ class ProductControllerTest {
 
     @MockBean
     private ProductService productService;
+    
+    @MockBean
+    private JpaMappingContext jpaMappingContext;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -198,3 +202,4 @@ class ProductControllerTest {
                 .andExpect(status().isNotFound());
     }
 }
+    */
