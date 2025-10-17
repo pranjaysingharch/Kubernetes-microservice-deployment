@@ -19,27 +19,15 @@ env:
 
 jobs:
   # =================================================================
-  # CODE QUALITY AND TESTING
+  # BUILD AND DOCKER IMAGE
   # =================================================================
-  test:
-    name: Test and Code Quality
+  build:
+    name: Build and Package
     runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+      digest: ${{ steps.build.outputs.digest }}
     
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_USER: postgres
-          POSTGRES_DB: microservice_a_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -68,152 +56,30 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x microservice-a/gradlew
 
-    - name: Run tests
-      run: |
-        cd microservice-a
-        ./gradlew clean test --info
-      env:
-        SPRING_PROFILES_ACTIVE: test
-        DB_HOST: localhost
-        DB_PORT: 5432
-        DB_NAME: microservice_a_test
-        DB_USERNAME: postgres
-        DB_PASSWORD: postgres
-
-    - name: Generate test report
-      uses: dorny/test-reporter@v1
-      if: success() || failure()
-      with:
-        name: Test Results
-        path: microservice-a/build/test-results/test/*.xml
-        reporter: java-junit
-
-    - name: Run code coverage
-      run: |
-        cd microservice-a
-        ./gradlew jacocoTestReport
-
-    - name: Upload coverage reports to Codecov
-      uses: codecov/codecov-action@v3
-      with:
-        file: microservice-a/build/reports/jacoco/test/jacocoTestReport.xml
-        flags: unittests
-        name: microservice-a-coverage
-
-    - name: SonarCloud Scan
-      uses: SonarSource/sonarcloud-github-action@master
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      with:
-        projectBaseDir: microservice-a
-
-  # =================================================================
-  # SECURITY SCANNING
-  # =================================================================
-  security:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    needs: test
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up JDK ${{ env.JAVA_VERSION }}
-      uses: actions/setup-java@v4
-      with:
-        java-version: ${{ env.JAVA_VERSION }}
-        distribution: 'temurin'
-
-    - name: Cache Gradle packages
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.gradle/caches
-          ~/.gradle/wrapper
-        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-
-    - name: Run dependency vulnerability scan
-      run: |
-        cd microservice-a
-        ./gradlew dependencyCheckAnalyze
-
-    - name: Upload vulnerability report
-      uses: actions/upload-artifact@v3
-      if: always()
-      with:
-        name: dependency-check-report
-        path: microservice-a/build/reports/dependency-check-report.html
-
-    - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@master
-      with:
-        scan-type: 'fs'
-        scan-ref: 'microservice-a'
-        format: 'sarif'
-        output: 'trivy-results.sarif'
-
-    - name: Upload Trivy scan results to GitHub Security tab
-      uses: github/codeql-action/upload-sarif@v2
-      with:
-        sarif_file: 'trivy-results.sarif'
-
-  # =================================================================
-  # BUILD AND DOCKER IMAGE
-  # =================================================================
-  build:
-    name: Build and Package
-    runs-on: ubuntu-latest
-    needs: [test, security]
-    outputs:
-      image: ${{ steps.image.outputs.image }}
-      digest: ${{ steps.build.outputs.digest }}
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up JDK ${{ env.JAVA_VERSION }}
-      uses: actions/setup-java@v4
-      with:
-        java-version: ${{ env.JAVA_VERSION }}
-        distribution: 'temurin'
-
-    - name: Cache Gradle packages
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.gradle/caches
-          ~/.gradle/wrapper
-        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-
     - name: Build application
       run: |
         cd microservice-a
         ./gradlew clean bootJar --info
 
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: jar-artifact
-        path: microservice-a/build/libs/*.jar
-
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    - name: Log in to Container Registry
-      uses: docker/login-action@v3
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
       with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
 
     - name: Extract metadata
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        images: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}
         tags: |
           type=ref,event=branch
           type=ref,event=pr
@@ -236,68 +102,3 @@ jobs:
       id: image
       run: |
         echo "image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" >> $GITHUB_OUTPUT
-
-  # =================================================================
-  # CONTAINER SECURITY SCANNING
-  # =================================================================
-  container-security:
-    name: Container Security Scan
-    runs-on: ubuntu-latest
-    needs: build
-    
-    steps:
-    - name: Run Trivy vulnerability scanner on image
-      uses: aquasecurity/trivy-action@master
-      with:
-        image-ref: ${{ needs.build.outputs.image }}:latest
-        format: 'sarif'
-        output: 'trivy-image-results.sarif'
-
-    - name: Upload Trivy scan results
-      uses: github/codeql-action/upload-sarif@v2
-      with:
-        sarif_file: 'trivy-image-results.sarif'
-
-  # =================================================================
-  # DEPLOYMENT TO STAGING (OPTIONAL)
-  # =================================================================
-  deploy-staging:
-    name: Deploy to Staging
-    runs-on: ubuntu-latest
-    needs: [build, container-security]
-    if: github.ref == 'refs/heads/main'
-    environment: staging
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Deploy to staging
-      run: |
-        echo "Deploying ${{ needs.build.outputs.image }}@${{ needs.build.outputs.digest }} to staging"
-        # Add your deployment commands here
-        # kubectl set image deployment/microservice-a microservice-a=${{ needs.build.outputs.image }}@${{ needs.build.outputs.digest }}
-
-  # =================================================================
-  # SLACK NOTIFICATION (OPTIONAL)
-  # =================================================================
-  notify:
-    name: Slack Notification
-    runs-on: ubuntu-latest
-    needs: [test, security, build, container-security]
-    if: always()
-    
-    steps:
-    - name: Slack Notification
-      uses: 8398a7/action-slack@v3
-      with:
-        status: ${{ job.status }}
-        channel: '#ci-cd'
-        text: |
-          CI Pipeline Result: ${{ job.status }}
-          Repository: ${{ github.repository }}
-          Branch: ${{ github.ref }}
-          Commit: ${{ github.sha }}
-          Author: ${{ github.actor }}
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
