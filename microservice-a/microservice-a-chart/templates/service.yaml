@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "microservice-a-chart.fullname" . }}
+  labels:
+    {{- include "microservice-a-chart.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+    - port: {{ .Values.service.actuatorPort }}
+      targetPort: actuator
+      protocol: TCP
+      name: actuator
+  selector:
+    {{- include "microservice-a-chart.selectorLabels" . | nindent 4 }}

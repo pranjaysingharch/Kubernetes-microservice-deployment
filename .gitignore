@@ -208,8 +208,85 @@ k8s-secrets/
 
 # Helm
 charts/*.tgz
+**/charts/*.tgz
+**/Chart.lock
+helm-*.tgz
+values-*.yaml
+!values.yaml
+
+# Helm dependencies
+**/charts/
+!**/Chart.yaml
+!**/values.yaml
+!**/templates/
+
+# Kubernetes secrets and configs
+kustomization.yaml
+k8s-secrets/
+*.kubeconfig
+kubeconfig*
+secret-*.yaml
+configmap-*.yaml
+
+# Docker build context
+.dockerignore
+**/target/docker/
+docker-compose.override.yml
+.docker/
+
+# Application logs
+app.log
+application.log
+**/logs/
+spring.log
+
+# Spring Boot
+**/BOOT-INF/
+**/META-INF/MANIFEST.MF
+
+# Java 25 specific
+--enable-preview
+
+# Testing
+**/test-output/
+**/test-results/
+**/coverage/
+jacoco.exec
 
 # Local development
 .local/
 local/
 dev/
+local-*.properties
+local-*.yml
+local-*.yaml
+
+# Backup files
+*.backup
+*.bak
+values.yaml.backup
+
+# Deployment scripts (keep the main ones)
+deploy-local.sh
+deploy-dev.sh
+!deploy-to-eks.sh
+
+# Java 25 specific
+module-info.java.backup
+
+# Application runtime
+nohup.out
+app.log
+*.pid
+
+# Helm test files
+helm-test-*.yaml
+
+# ECR login scripts
+ecr-login.sh
+aws-login.sh
+
+# Local environment overrides
+.env.local
+.env.*.local
+local-values.yaml

@@ -28,22 +28,32 @@ logs/
 # Test results
 TEST-*.xml
 
-# Documentation
-README.md
-docs/
+# Documentation (keep essential docs)
+docs/generated/
+!README.md
+!docs/
 
-# Docker
-Dockerfile*
-docker-compose*
+# Docker (keep essential files)
 .dockerignore
+docker-compose.override.yml
+!Dockerfile
+!docker-compose.yml
 
 # CI/CD
 .github/
 .gitlab-ci.yml
 Jenkinsfile
 
-# Kubernetes
-k8s/
-kubernetes/
-*.yaml
-*.yml
+# Kubernetes (keep templates but ignore generated manifests)
+k8s-generated/
+kubernetes-generated/
+secrets-*.yaml
+configmap-*.yaml
+deployment-*.yaml
+
+# Keep essential K8s and Helm files
+!Dockerfile
+!docker-compose.yml
+!microservice-a-chart/
+!**/*.yaml
+!**/*.yml

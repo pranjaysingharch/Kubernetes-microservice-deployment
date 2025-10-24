@@ -1,0 +1,189 @@
+# Default values for microservice-a-chart
+# This is a YAML-formatted file for Spring Boot Microservice A deployment
+
+replicaCount: 2
+
+image:
+  repository: microservice-a
+  pullPolicy: IfNotPresent
+  tag: "1.0.0"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations:
+    # Add IAM role annotations for AWS service access
+    # eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/ROLE_NAME
+  name: ""
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8081"
+  prometheus.io/path: "/actuator/prometheus"
+
+podLabels:
+  app: microservice-a
+  version: v1
+
+podSecurityContext:
+  fsGroup: 1001
+  runAsNonRoot: true
+  runAsUser: 1001
+
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 1001
+
+service:
+  type: ClusterIP
+  port: 8080
+  actuatorPort: 8081
+
+ingress:
+  enabled: true
+  className: "alb"
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-path: /actuator/health
+    alb.ingress.kubernetes.io/healthcheck-port: "8081"
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+  hosts:
+    - host: microservice-a.yourdomain.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Application Configuration
+app:
+  env: production
+  profiles:
+    active: "production"
+  javaOpts: "-Xms512m -Xmx1024m -XX:+UseG1GC --enable-preview"
+
+# Database Configuration
+database:
+  host: microservice-a-chart-postgresql
+  port: 5432
+  name: microservice_a_db
+  username: postgres
+
+# PostgreSQL dependency configuration
+postgresql:
+  enabled: true
+  auth:
+    postgresPassword: "password"
+    username: "postgres"
+    password: "password"
+    database: "microservice_a_db"
+  primary:
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClass: "gp2"
+    resources:
+      requests:
+        memory: 256Mi
+        cpu: 250m
+      limits:
+        memory: 512Mi
+        cpu: 500m
+
+# External Database Configuration (if not using embedded PostgreSQL)
+externalDatabase:
+  enabled: false
+  host: ""
+  port: 5432
+  database: microservice_a_db
+  username: postgres
+  password: ""
+  existingSecret: ""
+  existingSecretPasswordKey: ""
+
+# Health Check Configuration
+healthcheck:
+  enabled: true
+  probes:
+    liveness:
+      httpGet:
+        path: /health/live
+        port: 8080
+      initialDelaySeconds: 60
+      periodSeconds: 30
+      timeoutSeconds: 5
+      failureThreshold: 3
+    readiness:
+      httpGet:
+        path: /health/ready
+        port: 8080
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+    startup:
+      httpGet:
+        path: /health/startup
+        port: 8080
+      initialDelaySeconds: 10
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 30
+
+# Monitoring Configuration
+monitoring:
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    path: /actuator/prometheus
+    port: actuator
+
+# Environment Variables
+env:
+  - name: SPRING_PROFILES_ACTIVE
+    value: "production"
+  - name: MANAGEMENT_SERVER_PORT
+    value: "8081"
+  - name: SERVER_PORT
+    value: "8080"
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/name
+            operator: In
+            values:
+            - microservice-a-chart
+        topologyKey: kubernetes.io/hostname

@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "microservice-a-chart.fullname" . }}-config
+  labels:
+    {{- include "microservice-a-chart.labels" . | nindent 4 }}
+data:
+  application.properties: |
+    # Database Configuration
+    {{- if .Values.postgresql.enabled }}
+    spring.datasource.url=jdbc:postgresql://{{ .Values.database.host }}:{{ .Values.database.port }}/{{ .Values.database.name }}
+    spring.datasource.username={{ .Values.database.username }}
+    {{- else if .Values.externalDatabase.enabled }}
+    spring.datasource.url=jdbc:postgresql://{{ .Values.externalDatabase.host }}:{{ .Values.externalDatabase.port }}/{{ .Values.externalDatabase.database }}
+    spring.datasource.username={{ .Values.externalDatabase.username }}
+    {{- end }}
+    spring.datasource.driver-class-name=org.postgresql.Driver
+
+    # JPA Configuration
+    spring.jpa.hibernate.ddl-auto=validate
+    spring.jpa.show-sql=false
+    spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
+    spring.jpa.properties.hibernate.format_sql=true
+
+    # Flyway Configuration
+    spring.flyway.enabled=true
+    spring.flyway.baseline-on-migrate=true
+    spring.flyway.validate-on-migrate=true
+
+    # Actuator Configuration
+    management.endpoints.web.exposure.include=health,info,metrics,prometheus
+    management.endpoint.health.show-details=always
+    management.server.port=8081
+
+    # Logging Configuration
+    logging.level.com.production.microservices=INFO
+    logging.level.org.springframework.security=DEBUG
+
+    # Server Configuration
+    server.port=8080
+
+    # Application Profile
+    spring.profiles.active={{ .Values.app.profiles.active }}

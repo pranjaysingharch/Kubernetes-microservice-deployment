@@ -22,7 +22,7 @@ compileJava {
 }
 
 compileTestJava {
-    options.release = 21
+    options.release = 25
 }
 
 configurations {
@@ -150,25 +150,7 @@ tasks.register('dockerBuild') {
     }
 }
 
-// =================================================================
-// CODE COVERAGE CONFIGURATION - TEMPORARILY DISABLED FOR JAVA 25
-// =================================================================
 
-// JaCoCo is temporarily disabled due to incompatibility with Java 25
-// Will be re-enabled when JaCoCo releases Java 25 support
-
-// =================================================================
-// SONARQUBE CONFIGURATION
-// =================================================================
-sonarqube {
-    properties {
-        property "sonar.projectKey", "pranjaysingharch_Kubernetes-microservice-deployment"
-        property "sonar.organization", "pranjaysingharch"
-        property "sonar.host.url", "https://sonarcloud.io"
-        // Temporarily disabled for Java 25 compatibility
-        // property "sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/test/jacocoTestReport.xml"
-    }
-}
 
 // =================================================================
 // OWASP DEPENDENCY CHECK CONFIGURATION
